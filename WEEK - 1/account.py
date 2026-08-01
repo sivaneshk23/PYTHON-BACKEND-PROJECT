@@ -1,5 +1,8 @@
+from dataclasses import dataclass
+
+
+@dataclass
 class Account:
-    def __init__(self, account_number, name, balance):
-        self.account_number = account_number
-        self.name = name
-        self.balance = balance  
+    id: int
+    customer_name: str
+    balance: float = 0.0
