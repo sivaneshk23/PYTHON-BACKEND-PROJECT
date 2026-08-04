@@ -7,4 +7,4 @@ class Transaction:
     transaction_type: str
     amount: float
     related_account_id: int | None = None
-    reversed: bool = False
+    reversed: bool = False  

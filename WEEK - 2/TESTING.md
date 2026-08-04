@@ -68,3 +68,59 @@ Result: PASS
 All planned Week 2 Day 2 test cases passed successfully.
 
 The system now supports safer transaction reversal while preserving transaction history.
+
+## Week 2 Acceptance Testing - 04/08/2026
+
+Automated acceptance tests were added to verify the core Week 2 requirements.
+
+### Test 1 - Transfer Conservation
+
+Transferred ₹1,000 between two valid accounts.
+
+Verified that:
+
+- Sender balance decreased correctly
+- Receiver balance increased correctly
+- Total money before the transfer equals total money after the transfer
+
+Result: PASS
+
+### Test 2 - Failed Transfer Rollback
+
+Attempted to transfer ₹1,000 to a non-existent account.
+
+Verified that:
+
+- AccountNotFoundError was raised
+- Sender balance remained exactly unchanged
+- No partial transfer occurred
+
+Result: PASS
+
+### Test 3 - Customer Secondary Index
+
+Created two accounts for the same customer.
+
+Verified that both accounts can be retrieved using a single customer-name lookup.
+
+Result: PASS
+
+### Test 4 - Single Transaction Reversal
+
+Created two consecutive deposit transactions and reversed the latest transaction.
+
+Verified that:
+
+- Only the latest transaction was reversed
+- The earlier transaction remained active
+- The reversed transaction was marked as reversed
+- A reversal record was preserved in transaction history
+- Final account balance was correct
+
+Result: PASS
+
+## Automated Test Result
+
+All Week 2 acceptance tests passed successfully.
+
+**Result: 4/4 PASS**
