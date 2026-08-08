@@ -2,6 +2,7 @@ from collections import defaultdict
 
 from account import Account
 from transaction import Transaction
+from storage_manager import load_data, save_data
 
 
 class AccountNotFoundError(Exception):
@@ -17,13 +18,18 @@ class InvalidAmountError(Exception):
 
 
 class Bank:
-    def __init__(self):
+    def __init__(self, persistent=False):
         self.accounts = {}
         self.transactions = defaultdict(list)
         self.customer_index = defaultdict(list)
 
         self.next_account_id = 1
         self.next_transaction_id = 1
+
+        self.persistent = persistent
+
+        if self.persistent:
+            self.load_state()
 
     def _create_transaction(
         self,
@@ -58,9 +64,12 @@ class Bank:
         )
 
         self.accounts[account_id] = account
+
         self.customer_index[
             customer_name.lower()
         ].append(account_id)
+
+        self.save_state()
 
         return account
 
@@ -91,6 +100,8 @@ class Bank:
             transaction
         )
 
+        self.save_state()
+
     def withdraw(self, account_id, amount):
         if amount <= 0:
             raise InvalidAmountError(
@@ -115,9 +126,10 @@ class Bank:
             transaction
         )
 
+        self.save_state()
+
     def get_balance(self, account_id):
         account = self.get_account(account_id)
-
         return account.balance
 
     def transfer(self, from_id, to_id, amount):
@@ -166,6 +178,8 @@ class Bank:
                 transfer_in
             )
 
+            self.save_state()
+
         except Exception:
             from_account.balance = old_from_balance
             to_account.balance = old_to_balance
@@ -197,6 +211,7 @@ class Bank:
             )
 
         if original_transaction.transaction_type == "deposit":
+
             if original_transaction.amount > account.balance:
                 raise InsufficientFundsError(
                     "Cannot reverse deposit because "
@@ -211,9 +226,11 @@ class Bank:
             )
 
             transactions.append(reversal)
+
             original_transaction.reversed = True
 
         elif original_transaction.transaction_type == "withdraw":
+
             account.balance += original_transaction.amount
 
             reversal = self._create_transaction(
@@ -222,14 +239,18 @@ class Bank:
             )
 
             transactions.append(reversal)
+
             original_transaction.reversed = True
 
         elif original_transaction.transaction_type == "transfer_out":
+
             receiver_id = (
                 original_transaction.related_account_id
             )
 
-            receiver = self.get_account(receiver_id)
+            receiver = self.get_account(
+                receiver_id
+            )
 
             if original_transaction.amount > receiver.balance:
                 raise InsufficientFundsError(
@@ -256,9 +277,13 @@ class Bank:
                     account_id
                 )
 
-                transactions.append(sender_reversal)
+                transactions.append(
+                    sender_reversal
+                )
 
-                self.transactions[receiver_id].append(
+                self.transactions[
+                    receiver_id
+                ].append(
                     receiver_reversal
                 )
 
@@ -284,6 +309,8 @@ class Bank:
                 receiver.balance = old_receiver_balance
                 raise
 
+        self.save_state()
+
     def find_accounts_by_customer(
         self,
         customer_name
@@ -303,3 +330,101 @@ class Bank:
         self.get_account(account_id)
 
         return self.transactions[account_id]
+
+    def save_state(self):
+        if not self.persistent:
+            return
+
+        accounts = []
+
+        for account in self.accounts.values():
+            accounts.append({
+                "id": account.id,
+                "customer_name": account.customer_name,
+                "balance": account.balance
+            })
+
+        transactions = []
+
+        for account_id, account_transactions in (
+            self.transactions.items()
+        ):
+            for transaction in account_transactions:
+                transactions.append({
+                    "account_id": account_id,
+                    "transaction_id": transaction.transaction_id,
+                    "transaction_type": transaction.transaction_type,
+                    "amount": transaction.amount,
+                    "related_account_id":
+                        transaction.related_account_id,
+                    "reversed": transaction.reversed
+                })
+
+        data = {
+            "next_account_id": self.next_account_id,
+            "next_transaction_id": self.next_transaction_id,
+            "accounts": accounts,
+            "transactions": transactions
+        }
+
+        save_data(data)
+
+    def load_state(self):
+        data = load_data()
+
+        self.next_account_id = data.get(
+            "next_account_id",
+            1
+        )
+
+        self.next_transaction_id = data.get(
+            "next_transaction_id",
+            1
+        )
+
+        self.accounts.clear()
+        self.transactions.clear()
+        self.customer_index.clear()
+
+        for account_data in data.get(
+            "accounts",
+            []
+        ):
+            account = Account(
+                id=account_data["id"],
+                customer_name=account_data[
+                    "customer_name"
+                ],
+                balance=account_data["balance"]
+            )
+
+            self.accounts[account.id] = account
+
+            self.customer_index[
+                account.customer_name.lower()
+            ].append(account.id)
+
+        for transaction_data in data.get(
+            "transactions",
+            []
+        ):
+            transaction = Transaction(
+                transaction_id=transaction_data[
+                    "transaction_id"
+                ],
+                transaction_type=transaction_data[
+                    "transaction_type"
+                ],
+                amount=transaction_data["amount"],
+                related_account_id=transaction_data.get(
+                    "related_account_id"
+                ),
+                reversed=transaction_data.get(
+                    "reversed",
+                    False
+                )
+            )
+
+            self.transactions[
+                transaction_data["account_id"]
+            ].append(transaction)

@@ -6,7 +6,7 @@ from bank import (
 )
 
 
-bank = Bank()
+bank = Bank(persistent=True)
 
 
 while True:
