@@ -124,3 +124,94 @@ Result: PASS
 All Week 2 acceptance tests passed successfully.
 
 **Result: 4/4 PASS**
+
+## Edge-Case Testing - 05/08/2026
+
+Additional automated edge-case tests were performed to verify the robustness of the Week 2 implementation.
+
+### Test 1 - Transfer Reversal
+
+A valid transfer was performed and then reversed.
+
+Verified that:
+
+- Sender balance was restored
+- Receiver balance was restored
+- Original sender transfer was marked as reversed
+- Original receiver transfer was marked as reversed
+- Transfer reversal records were preserved in transaction history
+
+Result: PASS
+
+### Test 2 - Unsafe Transfer Reversal Protection
+
+A transfer was performed and the receiver's available balance was reduced before attempting reversal.
+
+Verified that:
+
+- The unsafe reversal was rejected
+- Sender balance remained unchanged
+- Receiver balance remained unchanged
+- No partial reversal occurred
+
+Result: PASS
+
+### Test 3 - Same-Account Transfer Protection
+
+Attempted to transfer money from an account to itself.
+
+Verified that:
+
+- The transfer was rejected
+- Account balance remained unchanged
+
+Result: PASS
+
+### Test 4 - Invalid Amount Validation
+
+Tested zero and negative values for deposit and withdrawal operations.
+
+Verified that invalid amounts were rejected and the account balance remained unchanged.
+
+Result: PASS
+
+### Test 5 - Insufficient Withdrawal Protection
+
+Attempted to withdraw more than the available account balance.
+
+Verified that:
+
+- The withdrawal was rejected
+- Account balance remained unchanged
+
+Result: PASS
+
+### Test 6 - Non-Existent Account Handling
+
+Attempted to retrieve the balance of an account that does not exist.
+
+Verified that the appropriate account-not-found error was raised.
+
+Result: PASS
+
+### Test 7 - Case-Insensitive Customer Indexing
+
+Created multiple accounts for the same customer and searched using lowercase and uppercase versions of the customer name.
+
+Verified that both accounts were returned correctly in both searches.
+
+Result: PASS
+
+## Day 4 Test Summary
+
+Edge-case tests:
+
+**7/7 PASS**
+
+Week 2 core acceptance regression tests:
+
+**4/4 PASS**
+
+Combined verified tests:
+
+**11/11 PASS**
