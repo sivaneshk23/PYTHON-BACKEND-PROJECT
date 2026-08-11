@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 from statement_service import StatementService
 
@@ -8,6 +9,18 @@ class FakeAccount:
     id: int
     customer_name: str
     balance: float
+
+
+@dataclass
+class FakeTransaction:
+    transaction_id: int
+    transaction_type: str
+    amount: float
+
+
+# ----------------------------------------------------------------------
+# Account sorting tests
+# ----------------------------------------------------------------------
 
 
 def test_account_ids_are_kept_sorted():
@@ -110,3 +123,210 @@ def test_accounts_can_be_sorted_by_balance():
         105,
         101
     ]
+
+
+# ----------------------------------------------------------------------
+# SortedDict transaction tests
+# ----------------------------------------------------------------------
+
+
+def test_transactions_are_sorted_by_timestamp():
+    service = StatementService()
+
+    timestamp_1 = datetime(
+        2026, 8, 11, 10, 0, 0
+    )
+
+    timestamp_2 = datetime(
+        2026, 8, 11, 11, 0, 0
+    )
+
+    timestamp_3 = datetime(
+        2026, 8, 11, 12, 0, 0
+    )
+
+    transaction_1 = FakeTransaction(
+        transaction_id=1,
+        transaction_type="deposit",
+        amount=5000
+    )
+
+    transaction_2 = FakeTransaction(
+        transaction_id=2,
+        transaction_type="withdraw",
+        amount=1000
+    )
+
+    transaction_3 = FakeTransaction(
+        transaction_id=3,
+        transaction_type="deposit",
+        amount=2000
+    )
+
+    service.add_transaction(
+        101,
+        transaction_3,
+        timestamp_3
+    )
+
+    service.add_transaction(
+        101,
+        transaction_1,
+        timestamp_1
+    )
+
+    service.add_transaction(
+        101,
+        transaction_2,
+        timestamp_2
+    )
+
+    result = service.get_sorted_transactions(101)
+
+    assert [
+        transaction.transaction_id
+        for transaction in result
+    ] == [1, 2, 3]
+
+
+def test_same_timestamp_transactions_are_not_overwritten():
+    service = StatementService()
+
+    same_timestamp = datetime(
+        2026, 8, 11, 10, 30, 0
+    )
+
+    transaction_1 = FakeTransaction(
+        transaction_id=1,
+        transaction_type="deposit",
+        amount=5000
+    )
+
+    transaction_2 = FakeTransaction(
+        transaction_id=2,
+        transaction_type="withdraw",
+        amount=1000
+    )
+
+    service.add_transaction(
+        101,
+        transaction_1,
+        same_timestamp
+    )
+
+    service.add_transaction(
+        101,
+        transaction_2,
+        same_timestamp
+    )
+
+    result = service.get_sorted_transactions(101)
+
+    assert len(result) == 2
+
+    assert [
+        transaction.transaction_id
+        for transaction in result
+    ] == [1, 2]
+
+
+def test_transaction_key_contains_timestamp_and_tie_breaker():
+    service = StatementService()
+
+    timestamp = datetime(
+        2026, 8, 11, 10, 30, 0
+    )
+
+    transaction_1 = FakeTransaction(
+        transaction_id=1,
+        transaction_type="deposit",
+        amount=5000
+    )
+
+    transaction_2 = FakeTransaction(
+        transaction_id=2,
+        transaction_type="deposit",
+        amount=2000
+    )
+
+    service.add_transaction(
+        101,
+        transaction_1,
+        timestamp
+    )
+
+    service.add_transaction(
+        101,
+        transaction_2,
+        timestamp
+    )
+
+    keys = service.get_transaction_keys(101)
+
+    assert keys == [
+        (timestamp, 1),
+        (timestamp, 2)
+    ]
+
+
+def test_transactions_can_be_retrieved_for_a_key_range():
+    service = StatementService()
+
+    timestamp_1 = datetime(
+        2026, 1, 1, 10, 0, 0
+    )
+
+    timestamp_2 = datetime(
+        2026, 1, 10, 10, 0, 0
+    )
+
+    timestamp_3 = datetime(
+        2026, 1, 20, 10, 0, 0
+    )
+
+    transaction_1 = FakeTransaction(
+        transaction_id=1,
+        transaction_type="deposit",
+        amount=1000
+    )
+
+    transaction_2 = FakeTransaction(
+        transaction_id=2,
+        transaction_type="deposit",
+        amount=2000
+    )
+
+    transaction_3 = FakeTransaction(
+        transaction_id=3,
+        transaction_type="withdraw",
+        amount=500
+    )
+
+    service.add_transaction(
+        101,
+        transaction_1,
+        timestamp_1
+    )
+
+    service.add_transaction(
+        101,
+        transaction_2,
+        timestamp_2
+    )
+
+    service.add_transaction(
+        101,
+        transaction_3,
+        timestamp_3
+    )
+
+    result = service.get_transaction_range(
+        101,
+        (timestamp_1, 1),
+        (timestamp_2, 2)
+    )
+
+    assert [
+        transaction.transaction_id
+        for transaction in result
+    ] == [1, 2]

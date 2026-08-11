@@ -1,27 +1,40 @@
 from bisect import bisect_left, bisect_right, insort
+from datetime import datetime
 from typing import Any
+
+from sortedcontainers import SortedDict
 
 
 class StatementService:
     """
-    Week 3 sorted account and statement support.
+    Week 3 sorted account and transaction statement support.
 
-    This service is responsible for:
-    - maintaining sorted account IDs using bisect
-    - producing accounts sorted by ID
-    - producing accounts sorted by balance
+    Responsibilities:
+    - Maintain account IDs in sorted order using bisect.
+    - Sort account views by ID and balance.
+    - Maintain each account's transactions in a SortedDict.
+    - Preserve transaction ordering using timestamp + transaction ID.
     """
 
     def __init__(self) -> None:
         self._sorted_account_ids: list[int] = []
 
+        self._transaction_history: dict[
+            int,
+            SortedDict[tuple[datetime, int], Any]
+        ] = {}
+
+    # ------------------------------------------------------------------
+    # Account sorting using bisect
+    # ------------------------------------------------------------------
+
     def add_account_id(self, account_id: int) -> None:
         """
         Insert an account ID into the sorted ID list.
 
-        bisect.insort() performs a binary search to find the
-        insertion position, but inserting into the Python list
-        still requires shifting elements.
+        bisect.insort() finds the insertion position efficiently,
+        but inserting into a Python list still requires shifting
+        existing elements.
         """
         if account_id not in self._sorted_account_ids:
             insort(self._sorted_account_ids, account_id)
@@ -69,10 +82,6 @@ class StatementService:
         """
         Return account IDs within an inclusive range.
 
-        bisect_left() finds the first valid position.
-        bisect_right() finds the position immediately after
-        the last valid position.
-
         No manual filtering loop is used.
         """
         start = bisect_left(
@@ -93,8 +102,6 @@ class StatementService:
     ) -> list[Any]:
         """
         Return account objects sorted by account ID.
-
-        The ordering comes from the bisect-maintained ID list.
         """
         return [
             accounts[account_id]
@@ -109,8 +116,8 @@ class StatementService:
         """
         Return account objects sorted by balance.
 
-        Account ID is used as a deterministic tie-breaker when
-        two accounts have the same balance.
+        Account ID is used as a deterministic tie-breaker
+        when two accounts have the same balance.
         """
         return sorted(
             accounts.values(),
@@ -119,3 +126,121 @@ class StatementService:
                 account.id
             )
         )
+
+    # ------------------------------------------------------------------
+    # Transaction history using SortedDict
+    # ------------------------------------------------------------------
+
+    def _get_history(
+        self,
+        account_id: int
+    ) -> SortedDict[tuple[datetime, int], Any]:
+        """
+        Get or create the SortedDict for one account.
+        """
+        if account_id not in self._transaction_history:
+            self._transaction_history[account_id] = SortedDict()
+
+        return self._transaction_history[account_id]
+
+    def add_transaction(
+        self,
+        account_id: int,
+        transaction: Any,
+        timestamp: datetime
+    ) -> None:
+        """
+        Store a transaction in sorted order.
+
+        The key is:
+
+            (timestamp, transaction_id)
+
+        The timestamp provides chronological ordering.
+
+        The transaction ID is the tie-breaker. This is essential
+        because two transactions can occur at exactly the same
+        timestamp. Using timestamp alone would cause the later
+        transaction to replace the earlier one in SortedDict.
+        """
+        if not isinstance(timestamp, datetime):
+            raise TypeError(
+                "timestamp must be a datetime instance."
+            )
+
+        transaction_id = getattr(
+            transaction,
+            "transaction_id",
+            None
+        )
+
+        if not isinstance(transaction_id, int):
+            raise ValueError(
+                "transaction must contain an integer transaction_id."
+            )
+
+        history = self._get_history(account_id)
+
+        key = (
+            timestamp,
+            transaction_id
+        )
+
+        history[key] = transaction
+
+    def get_sorted_transactions(
+        self,
+        account_id: int
+    ) -> list[Any]:
+        """
+        Return all transactions for an account in chronological order.
+        """
+        history = self._transaction_history.get(
+            account_id,
+            SortedDict()
+        )
+
+        return list(history.values())
+
+    def get_transaction_keys(
+        self,
+        account_id: int
+    ) -> list[tuple[datetime, int]]:
+        """
+        Return the timestamp + transaction ID keys in sorted order.
+
+        This method is useful for demonstrating how the tie-breaker
+        works internally.
+        """
+        history = self._transaction_history.get(
+            account_id,
+            SortedDict()
+        )
+
+        return list(history.keys())
+
+    def get_transaction_range(
+        self,
+        account_id: int,
+        start_key: tuple[datetime, int],
+        end_key: tuple[datetime, int]
+    ) -> list[Any]:
+        """
+        Return transactions within a SortedDict key range.
+
+        The actual date-range statement API will be built on top
+        of this mechanism in Week 3 Day 3.
+        """
+        history = self._transaction_history.get(
+            account_id,
+            SortedDict()
+        )
+
+        return [
+            history[key]
+            for key in history.irange(
+                minimum=start_key,
+                maximum=end_key,
+                inclusive=(True, True)
+            )
+        ]
