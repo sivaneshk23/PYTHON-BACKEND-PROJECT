@@ -220,27 +220,59 @@ class StatementService:
         return list(history.keys())
 
     def get_transaction_range(
-        self,
-        account_id: int,
-        start_key: tuple[datetime, int],
-        end_key: tuple[datetime, int]
-    ) -> list[Any]:
+    self,
+    account_id: int,
+    start_key: tuple[datetime, int],
+    end_key: tuple[datetime, int]
+) -> list[Any]:
         """
-        Return transactions within a SortedDict key range.
+        Return transactions inside an inclusive SortedDict key range.
 
-        The actual date-range statement API will be built on top
-        of this mechanism in Week 3 Day 3.
+        The range is selected directly through SortedDict.irange().
+        No manual filtering is performed.
         """
         history = self._transaction_history.get(
             account_id,
             SortedDict()
         )
 
-        return [
-            history[key]
-            for key in history.irange(
-                minimum=start_key,
-                maximum=end_key,
-                inclusive=(True, True)
+        keys = history.irange(
+            minimum=start_key,
+            maximum=end_key,
+            inclusive=(True, True)
+        )
+
+        return [history[key] for key in keys]
+    def get_statement_between_dates(
+    self,
+    account_id: int,
+    start_date: datetime,
+    end_date: datetime
+) -> list[Any]:
+        """
+        Return all transactions between two dates inclusively.
+
+        The transaction history is already ordered by
+        (timestamp, transaction_id), so the requested range is
+        delegated directly to SortedDict.irange().
+        """
+        if start_date > end_date:
+            raise ValueError(
+                "start_date must not be later than end_date."
             )
-        ]
+
+        start_key = (
+            start_date,
+            -1
+        )
+
+        end_key = (
+        end_date,
+        2**63 - 1
+        )
+
+        return self.get_transaction_range(
+            account_id,
+            start_key,
+            end_key
+        )

@@ -330,3 +330,146 @@ def test_transactions_can_be_retrieved_for_a_key_range():
         transaction.transaction_id
         for transaction in result
     ] == [1, 2]
+def test_statement_returns_only_transactions_inside_date_range():
+    service = StatementService()
+
+    transaction_1_date = datetime(
+        2026, 1, 1, 10, 0, 0
+    )
+
+    transaction_2_date = datetime(
+        2026, 1, 5, 10, 0, 0
+    )
+
+    transaction_3_date = datetime(
+        2026, 1, 10, 10, 0, 0
+    )
+
+    transaction_4_date = datetime(
+        2026, 1, 20, 10, 0, 0
+    )
+
+    transaction_1 = FakeTransaction(
+        transaction_id=1,
+        transaction_type="deposit",
+        amount=5000
+    )
+
+    transaction_2 = FakeTransaction(
+        transaction_id=2,
+        transaction_type="withdraw",
+        amount=1000
+    )
+
+    transaction_3 = FakeTransaction(
+        transaction_id=3,
+        transaction_type="deposit",
+        amount=2000
+    )
+
+    transaction_4 = FakeTransaction(
+        transaction_id=4,
+        transaction_type="withdraw",
+        amount=500
+    )
+
+    service.add_transaction(
+        101,
+        transaction_1,
+        transaction_1_date
+    )
+
+    service.add_transaction(
+        101,
+        transaction_2,
+        transaction_2_date
+    )
+
+    service.add_transaction(
+        101,
+        transaction_3,
+        transaction_3_date
+    )
+
+    service.add_transaction(
+        101,
+        transaction_4,
+        transaction_4_date
+    )
+
+    result = service.get_statement_between_dates(
+        101,
+        datetime(2026, 1, 1),
+        datetime(2026, 1, 15, 23, 59, 59)
+    )
+
+    assert [
+        transaction.transaction_id
+        for transaction in result
+    ] == [1, 2, 3]
+
+
+def test_statement_includes_transactions_on_boundary_dates():
+    service = StatementService()
+
+    start_date = datetime(
+        2026, 1, 1, 0, 0, 0
+    )
+
+    end_date = datetime(
+        2026, 1, 15, 23, 59, 59
+    )
+
+    transaction_1 = FakeTransaction(
+        transaction_id=1,
+        transaction_type="deposit",
+        amount=1000
+    )
+
+    transaction_2 = FakeTransaction(
+        transaction_id=2,
+        transaction_type="deposit",
+        amount=2000
+    )
+
+    service.add_transaction(
+        101,
+        transaction_1,
+        start_date
+    )
+
+    service.add_transaction(
+        101,
+        transaction_2,
+        end_date
+    )
+
+    result = service.get_statement_between_dates(
+        101,
+        start_date,
+        end_date
+    )
+
+    assert [
+        transaction.transaction_id
+        for transaction in result
+    ] == [1, 2]
+
+
+def test_statement_rejects_reversed_date_range():
+    service = StatementService()
+
+    try:
+        service.get_statement_between_dates(
+            101,
+            datetime(2026, 1, 15),
+            datetime(2026, 1, 1)
+        )
+    except ValueError as error:
+        assert str(error) == (
+            "start_date must not be later than end_date."
+        )
+    else:
+        raise AssertionError(
+            "Expected ValueError for reversed date range."
+        )
