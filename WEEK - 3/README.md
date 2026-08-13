@@ -674,7 +674,7 @@ demonstrating the measured performance difference between the relevant sorted-da
 Current status:
 
 ```text
-Week 3 — In Progress
+Week 3 — Completed
 ```
 
 Completed so far:
