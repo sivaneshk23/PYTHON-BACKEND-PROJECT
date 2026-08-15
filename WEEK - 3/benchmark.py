@@ -2,76 +2,48 @@ from bisect import insort
 from timeit import repeat
 
 from sortedcontainers import SortedDict
-from sqlalchemy import values
 
 
-INSERTION_COUNT = 5_000
-NUMBER_OF_RUNS = 5
+INSERTION_SIZES = (
+    500,
+    1000,
+    2500,
+    5000,
+    10000,
+    25000,
+)
+
+NUMBER_OF_RUNS = 3
 REPEAT_COUNT = 3
-SEED = 20260813
 
-def create_insertion_values() -> list[int]:
-    """
-    Create a deterministic insertion order.
 
-    A fixed seed makes the benchmark reproducible while
-    avoiding an already-sorted insertion sequence.
-    """
-    import random
+def create_insertion_values(size: int) -> list[int]:
+    return list(range(size - 1, -1, -1))
 
-    values = list(range(INSERTION_COUNT))
 
-    generator = random.Random(SEED)
-    generator.shuffle(values)
-
-    return values
-
-def benchmark_bisect() -> None:
-    """
-    Measure 5,000 sorted insertions using bisect.insort().
-    """
-
-    insertion_values = create_insertion_values()
-
+def benchmark_bisect(
+    insertion_values: list[int],
+) -> float:
     def run() -> None:
         values: list[int] = []
 
         for value in insertion_values:
             insort(values, value)
+
     timings = repeat(
         run,
         number=NUMBER_OF_RUNS,
-        repeat=REPEAT_COUNT
+        repeat=REPEAT_COUNT,
     )
 
-    best_time = min(timings)
-
-    total_insertions = (
-        INSERTION_COUNT * NUMBER_OF_RUNS
-    )
-
-    average_time_per_insertion = (
-        best_time / total_insertions
-    )
-
-    print("bisect.insort()")
-    print(
-        f"Best time for {total_insertions:,} insertions: "
-        f"{best_time:.6f} seconds"
-    )
-    print(
-        f"Average time per insertion: "
-        f"{average_time_per_insertion:.12f} seconds"
+    return min(timings) / (
+        len(insertion_values) * NUMBER_OF_RUNS
     )
 
 
-def benchmark_sorted_dict() -> None:
-    """
-    Measure 5,000 sorted insertions using SortedDict.
-    """
-
-    insertion_values = create_insertion_values()
-
+def benchmark_sorted_dict(
+    insertion_values: list[int],
+) -> float:
     def run() -> None:
         values = SortedDict()
 
@@ -81,46 +53,56 @@ def benchmark_sorted_dict() -> None:
     timings = repeat(
         run,
         number=NUMBER_OF_RUNS,
-        repeat=REPEAT_COUNT
+        repeat=REPEAT_COUNT,
     )
 
-    best_time = min(timings)
-
-    total_insertions = (
-        INSERTION_COUNT * NUMBER_OF_RUNS
-    )
-
-    average_time_per_insertion = (
-        best_time / total_insertions
-    )
-
-    print("SortedDict")
-    print(
-        f"Best time for {total_insertions:,} insertions: "
-        f"{best_time:.6f} seconds"
-    )
-    print(
-        f"Average time per insertion: "
-        f"{average_time_per_insertion:.12f} seconds"
+    return min(timings) / (
+        len(insertion_values) * NUMBER_OF_RUNS
     )
 
 
 def main() -> None:
-    print("=" * 60)
-    print("SecureBank Week 3 Insertion Benchmark")
-    print("=" * 60)
-    print(f"Insertions per run: {INSERTION_COUNT:,}")
-    print(f"Number of runs: {NUMBER_OF_RUNS}")
+    print("=" * 80)
+    print("SecureBank Week 3 Scaling Benchmark")
+    print("=" * 80)
+    print("Insertion order: descending")
+    print(f"Runs per measurement: {NUMBER_OF_RUNS}")
     print(f"Repeat count: {REPEAT_COUNT}")
     print()
 
-    benchmark_bisect()
+    print(
+        f"{'Size':>8} "
+        f"{'bisect.insort':>18} "
+        f"{'SortedDict':>18} "
+        f"{'bisect / SortedDict':>22}"
+    )
 
-    print()
+    print("-" * 80)
 
-    benchmark_sorted_dict()
+    for size in INSERTION_SIZES:
+        insertion_values = create_insertion_values(size)
 
-    print("=" * 60)
+        bisect_per_insert = benchmark_bisect(
+            insertion_values
+        )
+
+        sorted_dict_per_insert = benchmark_sorted_dict(
+            insertion_values
+        )
+
+        ratio = (
+            bisect_per_insert /
+            sorted_dict_per_insert
+        )
+
+        print(
+            f"{size:>8,} "
+            f"{bisect_per_insert:>18.12f} "
+            f"{sorted_dict_per_insert:>18.12f} "
+            f"{ratio:>22.2f}x"
+        )
+
+    print("=" * 80)
 
 
 if __name__ == "__main__":

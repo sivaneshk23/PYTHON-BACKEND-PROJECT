@@ -667,6 +667,17 @@ Short timeit benchmark report
 
 demonstrating the measured performance difference between the relevant sorted-data approaches.
 
+### Final Benchmark Observation
+
+The 5,000-insertion measurement showed `bisect.insort()` faster in the development environment.
+
+However, the scaling benchmark showed that the performance relationship changed as the collection grew:
+
+```text
+5,000 elements  → bisect.insort() 0.70x SortedDict
+10,000 elements → bisect.insort() 1.32x SortedDict
+25,000 elements → bisect.insort() 3.40x SortedDict
+
 ---
 
 ## 22. Development Status
